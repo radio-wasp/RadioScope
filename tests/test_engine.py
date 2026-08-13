@@ -104,7 +104,7 @@ def test_geodesy_and_polygon_generation():
 
 def test_station_contour_pipeline():
     wnyc = station_db.get_by_callsign("WNYC-FM")
-    tiers, geojson, profile = generate_station_contours(wnyc)
+    tiers, geojson, profile, power, pattern = generate_station_contours(wnyc)
 
     assert len(tiers) == 4
     assert geojson["type"] == "FeatureCollection"
@@ -116,3 +116,33 @@ def test_station_contour_pipeline():
     assert probe.callsign == "WNYC-FM"
     assert probe.field_strength_dbu > 60.0
     assert "Stereo" in probe.reception_quality or "Quieting" in probe.reception_quality
+
+
+def test_am_day_night_patterns():
+    # Test 50 kW AM station: WBBM or CFRB
+    cfrb = station_db.get_by_callsign("CFRB")
+    assert cfrb is not None
+    assert cfrb.band == "AM"
+
+    # 1. Day Mode
+    day_tiers, day_geojson, day_profile, day_power, day_pat = generate_station_contours(cfrb, mode="day")
+    assert len(day_tiers) == 4
+    assert "Day" in day_tiers[0].name
+    day_primary_radius = day_tiers[2].avg_radius_km  # 2 mV/m primary service
+
+    # 2. Night Mode
+    night_tiers, night_geojson, night_profile, night_power, night_pat = generate_station_contours(cfrb, mode="night")
+    assert len(night_tiers) == 4
+    assert "Skywave" in night_tiers[2].name or "Nighttime" in night_tiers[2].name
+
+    # Night Skywave reaches significantly farther (>300 km) than daytime groundwave
+    night_skywave_radius = night_tiers[2].avg_radius_km
+    assert night_skywave_radius > day_primary_radius
+    assert night_skywave_radius >= 250.0
+
+    # Test Nighttime Probe at distant location (e.g. 400 km away)
+    probe_night = probe_signal_at_location(cfrb, probe_lat=45.4215, probe_lon=-75.6972, mode="night") # Ottawa from Toronto (~350km)
+    assert probe_night.mode == "NIGHT"
+    assert probe_night.distance_km > 300.0
+    assert probe_night.field_strength_dbu > 35.0  # Decent skywave signal in Ottawa
+

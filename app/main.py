@@ -86,20 +86,22 @@ async def get_station(callsign: str):
 
 
 @app.get("/api/coverage/{callsign}", response_model=CoverageResponse)
-async def get_station_coverage(callsign: str):
+async def get_station_coverage(
+    callsign: str,
+    mode: str = Query("day", description="Operating mode: 'day' or 'night' (for AM stations)")
+):
     """
     Calculate and generate high-fidelity coverage contours, GeoJSON polygons,
     and radial signal profiles for any US or Canadian radio station by callsign.
+    Supports Day and Night patterns for AM broadcast stations.
     """
     st = station_db.get_by_callsign(callsign)
     if not st:
         raise HTTPException(status_code=404, detail=f"Station '{callsign}' not found.")
 
-    contours, geojson_fc, radial_profile = generate_station_contours(st)
+    contours, geojson_fc, radial_profile, operating_power, pattern_desc = generate_station_contours(st, mode=mode.lower())
 
-    # Estimate population based on primary contour area and average regional density
     primary_area = contours[1].area_sqkm if len(contours) > 1 else contours[0].area_sqkm
-    # Density factor adjustment: higher in urban centers
     density_factor = 280 if st.country == "US" else 210
     if st.city in ["New York", "Los Angeles", "Chicago", "Toronto", "Montréal", "San Francisco"]:
         density_factor = 1200
@@ -107,12 +109,15 @@ async def get_station_coverage(callsign: str):
 
     return CoverageResponse(
         station=st,
+        coverage_mode=mode.lower(),
+        operating_power_kw=operating_power,
+        operating_pattern=pattern_desc,
         contours=contours,
         geojson=geojson_fc,
         radial_profile=radial_profile,
         center_coords=[st.latitude, st.longitude],
         est_population=est_pop,
-        source=f"FCC 47 CFR § 73.313 / 73.184 ({st.country} Standard)"
+        source=f"FCC 47 CFR § 73.184/73.190 & § 73.313 ({st.country} Standard)"
     )
 
 
@@ -133,17 +138,24 @@ async def calculate_custom_coverage(req: CustomTransmitterRequest):
         city=req.city,
         state=req.state,
         country=req.country.upper(),
+        day_power_kw=req.day_power_kw,
+        night_power_kw=req.night_power_kw,
         directional=req.directional,
+        night_beam_deg=req.pattern_beam_deg or 0.0,
         licensee="Custom Simulation",
         format="Experimental Broadcast"
     )
 
-    contours, geojson_fc, radial_profile = generate_station_contours(st)
+    mode = req.mode.lower() if req.mode else "day"
+    contours, geojson_fc, radial_profile, operating_power, pattern_desc = generate_station_contours(st, mode=mode)
     primary_area = contours[1].area_sqkm if len(contours) > 1 else contours[0].area_sqkm
     est_pop = int(primary_area * 250)
 
     return CoverageResponse(
         station=st,
+        coverage_mode=mode,
+        operating_power_kw=operating_power,
+        operating_pattern=pattern_desc,
         contours=contours,
         geojson=geojson_fc,
         radial_profile=radial_profile,
@@ -166,7 +178,8 @@ async def probe_signal(req: SignalProbeRequest):
     if not station:
         raise HTTPException(status_code=400, detail="Station data or valid callsign required.")
 
-    return probe_signal_at_location(station, req.lat, req.lon)
+    return probe_signal_at_location(station, req.lat, req.lon, mode=req.mode or "day")
+
 
 
 @app.get("/api/export/geojson/{callsign}")

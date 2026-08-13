@@ -6,6 +6,7 @@ class RadioScopeApp {
     constructor() {
         this.mapManager = null;
         this.currentCoverage = null;
+        this.currentMode = "day";
         this.isPlayingAudio = false;
         this.searchDebounceTimer = null;
 
@@ -27,6 +28,11 @@ class RadioScopeApp {
             stLocation: document.getElementById('st-location'),
             stCoords: document.getElementById('st-coords'),
             stLicensee: document.getElementById('st-licensee'),
+
+            // AM Day / Night Switcher
+            amModeContainer: document.getElementById('am-mode-toggle-container'),
+            btnModeDay: document.getElementById('btn-mode-day'),
+            btnModeNight: document.getElementById('btn-mode-night'),
 
             // Stream
             streamContainer: document.getElementById('live-stream-container'),
@@ -124,13 +130,33 @@ class RadioScopeApp {
             }
         });
 
+        // AM Day / Night Mode Switcher
+        if (this.dom.btnModeDay && this.dom.btnModeNight) {
+            this.dom.btnModeDay.addEventListener('click', () => {
+                if (this.currentMode !== 'day') {
+                    this.currentMode = 'day';
+                    if (this.currentCoverage) {
+                        this.loadStationCoverage(this.currentCoverage.station.callsign, 'day');
+                    }
+                }
+            });
+            this.dom.btnModeNight.addEventListener('click', () => {
+                if (this.currentMode !== 'night') {
+                    this.currentMode = 'night';
+                    if (this.currentCoverage) {
+                        this.loadStationCoverage(this.currentCoverage.station.callsign, 'night');
+                    }
+                }
+            });
+        }
+
         // Quick Suggestion Chips
         document.querySelectorAll('.chip').forEach((chip) => {
             chip.addEventListener('click', () => {
                 const call = chip.dataset.callsign;
                 if (call) {
                     this.dom.searchInput.value = call;
-                    this.loadStationCoverage(call);
+                    this.loadStationCoverage(call, this.currentMode);
                 }
             });
         });
@@ -223,7 +249,7 @@ class RadioScopeApp {
                     if (call) {
                         this.dom.searchInput.value = call;
                         this.dom.autocompleteDropdown.classList.add('hidden');
-                        this.loadStationCoverage(call);
+                        this.loadStationCoverage(call, this.currentMode);
                     }
                 });
             });
@@ -232,14 +258,16 @@ class RadioScopeApp {
         }
     }
 
-    async loadStationCoverage(callsign) {
+    async loadStationCoverage(callsign, mode = null) {
+        if (!mode) mode = this.currentMode;
         try {
-            const res = await fetch(`/api/coverage/${encodeURIComponent(callsign)}`);
+            const res = await fetch(`/api/coverage/${encodeURIComponent(callsign)}?mode=${encodeURIComponent(mode)}`);
             if (!res.ok) {
                 alert(`Could not load coverage for '${callsign}'.`);
                 return;
             }
             const data = await res.json();
+            this.currentMode = data.coverage_mode || mode;
             this.renderStationData(data);
         } catch (err) {
             console.error('Error fetching station coverage:', err);
@@ -250,22 +278,37 @@ class RadioScopeApp {
     renderStationData(coverageData) {
         this.currentCoverage = coverageData;
         const st = coverageData.station;
+        const isAm = st.band.toUpperCase() === 'AM';
 
         // Populate Station Identity
         this.dom.stCallsign.textContent = st.callsign;
         this.dom.stCountryBadge.textContent = st.country === 'CA' ? '🇨🇦 Canada' : '🇺🇸 USA';
         this.dom.stBandBadge.textContent = st.band;
         this.dom.stName.textContent = st.name || `${st.callsign} Broadcast Station`;
+
+        // Handle AM Day / Night Switcher
+        if (isAm) {
+            this.dom.amModeContainer.classList.remove('hidden');
+            if (this.currentMode === 'night') {
+                this.dom.btnModeDay.classList.remove('active');
+                this.dom.btnModeNight.classList.add('active');
+            } else {
+                this.dom.btnModeDay.classList.add('active');
+                this.dom.btnModeNight.classList.remove('active');
+            }
+        } else {
+            this.dom.amModeContainer.classList.add('hidden');
+        }
         
         // Populate Engineering Specs
-        const isAm = st.band.toUpperCase() === 'AM';
         this.dom.stFrequency.textContent = `${st.frequency} ${isAm ? 'kHz' : 'MHz'}`;
-        this.dom.stErp.textContent = `${st.erp_kw} kW`;
+        this.dom.stErp.textContent = `${coverageData.operating_power_kw || st.erp_kw} kW`;
         this.dom.stHaat.textContent = `${st.haat_m} m (${Math.round(st.haat_m * 3.28084)} ft)`;
-        this.dom.stClass.textContent = `Class ${st.station_class || 'B'} (${st.directional ? 'Directional' : 'Omni'})`;
+        this.dom.stClass.textContent = coverageData.operating_pattern || `Class ${st.station_class || 'B'}`;
         this.dom.stLocation.textContent = `${st.city}, ${st.state}`;
         this.dom.stCoords.textContent = `${st.latitude.toFixed(4)}° N, ${Math.abs(st.longitude).toFixed(4)}° W`;
         this.dom.stLicensee.textContent = st.licensee || st.format || 'Licensed Broadcast Operator';
+
 
         // Setup Audio Stream
         this.setupAudioStream(st.stream_url);
@@ -398,6 +441,7 @@ class RadioScopeApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     station_data: this.currentCoverage.station,
+                    mode: this.currentMode,
                     lat: lat,
                     lon: lon
                 })
@@ -405,6 +449,7 @@ class RadioScopeApp {
 
             if (!res.ok) return;
             const probe = await res.json();
+
 
             // Update Probe Card UI
             this.dom.probeContent.innerHTML = `
