@@ -215,6 +215,21 @@ body:not(.dark-theme):not(.light-theme) .leaflet-container {
     background-color: #070300 !important;
 }
 
+/* In Amber CRT mode, only the Light map option is available */
+body.amber-crt-theme .basemap-selector .basemap-btn:not([data-style="positron"]),
+body:not(.dark-theme):not(.light-theme) .basemap-selector .basemap-btn:not([data-style="positron"]) {
+    display: none !important;
+}
+
+body.amber-crt-theme .basemap-selector .basemap-btn[data-style="positron"],
+body:not(.dark-theme):not(.light-theme) .basemap-selector .basemap-btn[data-style="positron"] {
+    display: inline-block !important;
+    background-color: #ffaa00 !important;
+    color: #0d0500 !important;
+    box-shadow: 0 0 12px rgba(255, 170, 0, 0.6) !important;
+    font-weight: 700;
+}
+
 
 * {
     box-sizing: border-box;

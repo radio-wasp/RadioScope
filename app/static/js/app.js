@@ -598,16 +598,46 @@ class RadioScopeApp {
         this.dom.exportModal.classList.add('hidden');
     }
 
+    updateBasemapUIForTheme() {
+        const isAmber = document.body.classList.contains('amber-crt-theme') || 
+            (!document.body.classList.contains('dark-theme') && !document.body.classList.contains('light-theme'));
+
+        const basemapBtns = document.querySelectorAll('.basemap-btn');
+        basemapBtns.forEach((btn) => {
+            if (isAmber) {
+                if (btn.dataset.style === 'positron') {
+                    btn.classList.add('active');
+                    btn.style.display = 'inline-block';
+                    btn.removeAttribute('disabled');
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.display = 'none';
+                    btn.setAttribute('disabled', 'true');
+                }
+            } else {
+                btn.style.display = 'inline-block';
+                btn.removeAttribute('disabled');
+            }
+        });
+
+        if (isAmber) {
+            this.mapManager.setBasemap('positron');
+        }
+    }
+
     setupTheme() {
         const saved = localStorage.getItem('radioscope_theme') || 'amber-crt';
         document.body.classList.remove('amber-crt-theme', 'dark-theme', 'light-theme');
         if (saved === 'light') {
             document.body.classList.add('light-theme');
+            this.mapManager.setBasemap('positron');
         } else if (saved === 'dark') {
             document.body.classList.add('dark-theme');
+            this.mapManager.setBasemap('dark');
         } else {
             document.body.classList.add('amber-crt-theme');
         }
+        this.updateBasemapUIForTheme();
     }
 
     toggleTheme() {
@@ -616,22 +646,30 @@ class RadioScopeApp {
             document.body.classList.add('dark-theme');
             localStorage.setItem('radioscope_theme', 'dark');
             this.mapManager.setBasemap('dark');
+            document.querySelectorAll('.basemap-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.style === 'dark');
+            });
         } else if (document.body.classList.contains('dark-theme')) {
             document.body.classList.remove('dark-theme');
             document.body.classList.add('light-theme');
             localStorage.setItem('radioscope_theme', 'light');
             this.mapManager.setBasemap('positron');
+            document.querySelectorAll('.basemap-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.style === 'positron');
+            });
         } else {
             document.body.classList.remove('light-theme');
             document.body.classList.add('amber-crt-theme');
             localStorage.setItem('radioscope_theme', 'amber-crt');
-            this.mapManager.setBasemap('dark');
         }
+
+        this.updateBasemapUIForTheme();
 
         if (this.currentCoverage) {
             this.drawProfileChart(this.currentCoverage.radial_profile);
         }
     }
+
 }
 
 // Initialize Application when DOM is ready
