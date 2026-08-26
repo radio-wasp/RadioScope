@@ -12,7 +12,7 @@
 ## Key Features
 
 - **US & Canada Coverage Database**:
-  - Comprehensive index of US stations (FCC) and Canadian stations (ISED/CRTC) across all states and provinces.
+  - Comprehensive index of US stations (FCC) and Canadian stations (ISED/CRTC) across all states and provinces (e.g., `WNYC-FM`, `KQED`, `KEXP`, `WBBM`, `WWOZ`, `CBLA-FM`, `CJBC`, `CKUA`, `CFNY-FM`, `CFRB`, `CJAD`, `CKNW`, etc.).
   - Real-world technical parameters: Coordinates, Frequency, ERP (Effective Radiated Power), HAAT (Height Above Average Terrain), Licensee, City of License, and Band.
   - Automatic synthesis engine for unindexed callsigns based on North American ITU allocations.
 
@@ -88,3 +88,73 @@ Open **`http://localhost:8080`** in your browser.
 
 ---
 
+## REST API Reference
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `GET /api/stations/search?q={query}` | `GET` | Search stations by callsign, name, city, state, or frequency with autocomplete. |
+| `GET /api/station/{callsign}` | `GET` | Retrieve station engineering specifications and metadata. |
+| `GET /api/coverage/{callsign}` | `GET` | Generate multi-tier coverage contours, GeoJSON, and radial signal profiles. |
+| `POST /api/probe` | `POST` | Probe field strength ($dB\mu V/m$), distance, and reception quality at a lat/lon coordinate. |
+| `POST /api/custom-coverage` | `POST` | Generate coverage map for a simulated custom transmitter. |
+| `GET /api/export/geojson/{callsign}` | `GET` | Download coverage polygons as GeoJSON. |
+| `GET /api/export/kml/{callsign}` | `GET` | Download coverage contours as Google Earth KML. |
+| `GET /api/health` | `GET` | Container health check endpoint. |
+
+---
+
+## Example Test Callsigns
+
+- **US Stations**:
+  - `WNYC-FM` (93.9 MHz, New York, NY - 6 kW ERP @ 415m HAAT)
+  - `KQED-FM` (88.5 MHz, San Francisco, CA - 110 kW ERP @ 540m HAAT)
+  - `KEXP-FM` (90.3 MHz, Seattle, WA - 4.7 kW ERP @ 489m HAAT)
+  - `WBBM` (780 kHz AM, Chicago, IL - 50 kW clear-channel)
+  - `WWOZ` (90.7 MHz, New Orleans, LA - 100 kW ERP @ 204m HAAT)
+  - `WFMT` (98.7 MHz, Chicago, IL - 6 kW ERP @ 480m HAAT)
+
+- **Canadian Stations**:
+  - `CBLA-FM` (99.1 MHz, CBC Radio One Toronto, ON - 38 kW ERP @ 418m HAAT)
+  - `CJBC` (860 kHz AM, ICI Première Toronto, ON - 50 kW)
+  - `CFRB` (1010 kHz AM, NEWSTALK 1010 Toronto, ON - 50 kW)
+  - `CFNY-FM` (102.1 MHz, 102.1 The Edge Toronto, ON - 35 kW ERP @ 418m HAAT)
+  - `CKUA` (93.7 MHz, Edmonton, AB - 100 kW ERP @ 220m HAAT)
+  - `CBF-FM` (95.1 MHz, ICI Première Montréal, QC - 100 kW ERP @ 300m HAAT)
+  - `CFOX-FM` (99.3 MHz, Vancouver, BC - 75 kW ERP @ 665m HAAT)
+
+---
+
+## Project Structure
+
+```
+radio-coverage-map/
+├── Dockerfile                  # Multi-stage lightweight Python container
+├── docker-compose.yml          # Single-command Docker orchestration
+├── .dockerignore
+├── requirements.txt            # Python dependencies (FastAPI, Uvicorn, NumPy, etc.)
+├── README.md                   # Full documentation
+├── app/
+│   ├── main.py                 # FastAPI application & REST routing
+│   ├── models.py               # Pydantic / Data schemas
+│   ├── data/
+│   │   ├── station_db.py       # Station repository & fuzzy search
+│   │   ├── us_stations.json    # Curated US broadcast stations
+│   │   └── ca_stations.json    # Curated Canadian broadcast stations
+│   ├── engine/
+│   │   ├── propagation.py      # FCC F(50,50) and AM Groundwave calculation engine
+│   │   └── geodesy.py          # Spherical geodesy, Vincenty & GeoJSON generation
+│   └── static/
+│       ├── index.html          # Interactive Web UI
+│       ├── css/
+│       │   └── style.css       # Clean responsive theme
+│       └── js/
+│           ├── app.js          # App controller, audio player, simulation & export
+│           └── map.js          # Leaflet map, contours, probes, basemap switchers
+└── tests/
+    └── test_engine.py          # Unit test suite
+```
+
+---
+
+## License
+MIT License. Open-source broadcast mapping tool for radio engineers, hobbyists, and DXers.

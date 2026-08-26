@@ -381,12 +381,15 @@ class RadioScopeApp {
         const getX = (dist) => padL + (dist / maxDist) * (w - padL - padR);
         const getY = (dbu) => padT + (1 - (dbu - minDbu) / (maxDbu - minDbu)) * (h - padT - padB);
 
+        // Determine if Amber CRT theme is active
+        const isAmber = document.body.classList.contains('amber-crt-theme') || (!document.body.classList.contains('dark-theme') && !document.body.classList.contains('light-theme'));
+
         // Draw Reference Contour Lines (70, 60, 54, 48 dBu)
         const refLines = [
-            { dbu: 70, color: 'rgba(16, 185, 129, 0.4)', label: '70' },
-            { dbu: 60, color: 'rgba(59, 130, 246, 0.4)', label: '60' },
-            { dbu: 54, color: 'rgba(245, 158, 11, 0.4)', label: '54' },
-            { dbu: 48, color: 'rgba(139, 92, 246, 0.4)', label: '48' }
+            { dbu: 70, color: isAmber ? 'rgba(255, 170, 0, 0.45)' : 'rgba(16, 185, 129, 0.4)', label: '70' },
+            { dbu: 60, color: isAmber ? 'rgba(255, 150, 0, 0.35)' : 'rgba(59, 130, 246, 0.4)', label: '60' },
+            { dbu: 54, color: isAmber ? 'rgba(255, 120, 0, 0.25)' : 'rgba(245, 158, 11, 0.4)', label: '54' },
+            { dbu: 48, color: isAmber ? 'rgba(255, 90, 0, 0.20)' : 'rgba(139, 92, 246, 0.4)', label: '48' }
         ];
 
         ctx.lineWidth = 1;
@@ -399,23 +402,30 @@ class RadioScopeApp {
             ctx.lineTo(w - padR, y);
             ctx.stroke();
 
-            ctx.fillStyle = '#64748b';
-            ctx.font = '9px "JetBrains Mono", monospace';
+            ctx.fillStyle = isAmber ? '#ffaa00' : '#64748b';
+            ctx.font = '9px "Share Tech Mono", monospace';
             ctx.fillText(`${ref.label}`, 8, y + 3);
         });
 
-        // Draw Signal Curve
+        // Draw Signal Curve (with Phosphor CRT Glow in Amber Mode)
         ctx.setLineDash([]);
         ctx.lineWidth = 2.5;
-        const gradient = ctx.createLinearGradient(padL, 0, w - padR, 0);
-        gradient.addColorStop(0, '#10b981');
-        gradient.addColorStop(0.35, '#3b82f6');
-        gradient.addColorStop(0.7, '#f59e0b');
-        gradient.addColorStop(1, '#8b5cf6');
 
-        ctx.strokeStyle = gradient;
+        if (isAmber) {
+            ctx.strokeStyle = '#ffb700';
+            ctx.shadowColor = '#ff9900';
+            ctx.shadowBlur = 12;
+        } else {
+            const gradient = ctx.createLinearGradient(padL, 0, w - padR, 0);
+            gradient.addColorStop(0, '#10b981');
+            gradient.addColorStop(0.35, '#3b82f6');
+            gradient.addColorStop(0.7, '#f59e0b');
+            gradient.addColorStop(1, '#8b5cf6');
+            ctx.strokeStyle = gradient;
+            ctx.shadowBlur = 0;
+        }
+
         ctx.beginPath();
-
         profilePoints.forEach((pt, i) => {
             const x = getX(pt.distance_km);
             const y = getY(Math.max(minDbu, Math.min(maxDbu, pt.field_strength_dbu)));
@@ -424,13 +434,17 @@ class RadioScopeApp {
         });
         ctx.stroke();
 
+        // Reset Shadow Glow
+        ctx.shadowBlur = 0;
+
         // X-Axis Distance Labels
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = isAmber ? '#d98400' : '#94a3b8';
+        ctx.font = '10px "Share Tech Mono", monospace';
         ctx.fillText('0 km', padL - 6, h - 6);
         ctx.fillText(`${Math.round(maxDist / 2)} km`, (padL + w - padR) / 2 - 12, h - 6);
         ctx.fillText(`${Math.round(maxDist)} km`, w - padR - 22, h - 6);
     }
+
 
     async handleMapProbe(lat, lon) {
         if (!this.currentCoverage) return;
@@ -585,25 +599,33 @@ class RadioScopeApp {
     }
 
     setupTheme() {
-        const saved = localStorage.getItem('radioscope_theme') || 'dark';
+        const saved = localStorage.getItem('radioscope_theme') || 'amber-crt';
+        document.body.classList.remove('amber-crt-theme', 'dark-theme', 'light-theme');
         if (saved === 'light') {
-            document.body.classList.remove('dark-theme');
             document.body.classList.add('light-theme');
+        } else if (saved === 'dark') {
+            document.body.classList.add('dark-theme');
+        } else {
+            document.body.classList.add('amber-crt-theme');
         }
     }
 
     toggleTheme() {
-        const isLight = document.body.classList.contains('light-theme');
-        if (isLight) {
-            document.body.classList.remove('light-theme');
+        if (document.body.classList.contains('amber-crt-theme')) {
+            document.body.classList.remove('amber-crt-theme');
             document.body.classList.add('dark-theme');
             localStorage.setItem('radioscope_theme', 'dark');
             this.mapManager.setBasemap('dark');
-        } else {
+        } else if (document.body.classList.contains('dark-theme')) {
             document.body.classList.remove('dark-theme');
             document.body.classList.add('light-theme');
             localStorage.setItem('radioscope_theme', 'light');
             this.mapManager.setBasemap('positron');
+        } else {
+            document.body.classList.remove('light-theme');
+            document.body.classList.add('amber-crt-theme');
+            localStorage.setItem('radioscope_theme', 'amber-crt');
+            this.mapManager.setBasemap('dark');
         }
 
         if (this.currentCoverage) {

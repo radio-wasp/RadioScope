@@ -12,6 +12,8 @@ services:
     environment:
       - PORT=8080
       - PYTHONUNBUFFERED=1
+    volumes:
+      - ./app:/app/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
