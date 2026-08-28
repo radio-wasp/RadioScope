@@ -63,12 +63,27 @@ class RadioScopeApp {
             exportGeojsonBtn: document.getElementById('export-geojson-btn'),
             exportKmlBtn: document.getElementById('export-kml-btn'),
             exportReportBtn: document.getElementById('export-report-btn'),
+            exportPngBtn: document.getElementById('export-png-btn'),
+
+            // Compare DOM Elements
+            btnCompareMenu: document.getElementById('btn-compare-menu'),
+            compareBadge: document.getElementById('compare-badge'),
+            btnAddCompare: document.getElementById('btn-add-compare'),
+            compareModal: document.getElementById('compare-modal'),
+            compareCloseBtn: document.getElementById('compare-close-btn'),
+            compareSearchInput: document.getElementById('compare-search-input'),
+            compareAddBtn: document.getElementById('compare-add-btn'),
+            compareSlotsContainer: document.getElementById('compare-slots-container'),
+            compareTable: document.getElementById('compare-table'),
+            compareClearBtn: document.getElementById('compare-clear-btn'),
+            compareOverlayMapBtn: document.getElementById('compare-overlay-map-btn'),
 
             btnThemeToggle: document.getElementById('btn-theme-toggle'),
             btnRecenter: document.getElementById('btn-recenter'),
             btnToggleProbeTool: document.getElementById('btn-toggle-probe-tool'),
         };
 
+        this.comparedStations = [];
         this.init();
     }
 
@@ -201,6 +216,71 @@ class RadioScopeApp {
         this.dom.exportGeojsonBtn.addEventListener('click', () => this.triggerExport('geojson'));
         this.dom.exportKmlBtn.addEventListener('click', () => this.triggerExport('kml'));
         this.dom.exportReportBtn.addEventListener('click', () => this.triggerExport('report'));
+        if (this.dom.exportPngBtn) {
+            this.dom.exportPngBtn.addEventListener('click', () => this.exportMapScreenshot());
+        }
+
+        // Compare Event Listeners
+        if (this.dom.btnCompareMenu) {
+            this.dom.btnCompareMenu.addEventListener('click', () => {
+                this.renderCompareModalUI();
+                this.dom.compareModal.classList.remove('hidden');
+            });
+        }
+
+        if (this.dom.compareCloseBtn) {
+            this.dom.compareCloseBtn.addEventListener('click', () => {
+                this.dom.compareModal.classList.add('hidden');
+            });
+        }
+
+        if (this.dom.btnAddCompare) {
+            this.dom.btnAddCompare.addEventListener('click', () => {
+                if (this.currentCoverage) {
+                    this.addStationToCompare(this.currentCoverage.station.callsign);
+                }
+            });
+        }
+
+        if (this.dom.compareAddBtn) {
+            this.dom.compareAddBtn.addEventListener('click', () => {
+                const val = this.dom.compareSearchInput.value.trim();
+                if (val) {
+                    this.addStationToCompare(val);
+                    this.dom.compareSearchInput.value = '';
+                }
+            });
+        }
+
+        if (this.dom.compareSearchInput) {
+            this.dom.compareSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = this.dom.compareSearchInput.value.trim();
+                    if (val) {
+                        this.addStationToCompare(val);
+                        this.dom.compareSearchInput.value = '';
+                    }
+                }
+            });
+        }
+
+        if (this.dom.compareClearBtn) {
+            this.dom.compareClearBtn.addEventListener('click', () => {
+                this.comparedStations = [];
+                this.updateCompareBadge();
+                this.renderCompareModalUI();
+            });
+        }
+
+        if (this.dom.compareOverlayMapBtn) {
+            this.dom.compareOverlayMapBtn.addEventListener('click', () => {
+                this.dom.compareModal.classList.add('hidden');
+                if (this.comparedStations.length > 0) {
+                    this.mapManager.renderMultiCoverage(this.comparedStations);
+                }
+            });
+        }
 
         // Theme Toggle
         this.dom.btnThemeToggle.addEventListener('click', () => this.toggleTheme());
@@ -670,6 +750,173 @@ class RadioScopeApp {
         }
     }
 
+    async addStationToCompare(callsign) {
+        if (this.comparedStations.length >= 5) {
+            alert('Comparison maximum reached (up to 5 stations). Please remove a station to add another.');
+            return;
+        }
+
+        const cleanCall = callsign.toUpperCase().trim();
+        if (this.comparedStations.some(s => s.station.callsign.toUpperCase() === cleanCall)) {
+            alert(`${cleanCall} is already in the comparison list.`);
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/coverage/${encodeURIComponent(cleanCall)}`);
+            if (!res.ok) {
+                alert(`Could not find coverage data for station '${cleanCall}'.`);
+                return;
+            }
+            const data = await res.json();
+            this.comparedStations.push(data);
+            this.updateCompareBadge();
+            this.renderCompareModalUI();
+        } catch (err) {
+            console.error('Error adding station to compare:', err);
+        }
+    }
+
+    removeStationFromCompare(callsign) {
+        this.comparedStations = this.comparedStations.filter(s => s.station.callsign !== callsign);
+        this.updateCompareBadge();
+        this.renderCompareModalUI();
+    }
+
+    updateCompareBadge() {
+        const count = this.comparedStations.length;
+        if (this.dom.compareBadge) {
+            this.dom.compareBadge.textContent = count;
+            this.dom.compareBadge.classList.toggle('hidden', count === 0);
+        }
+    }
+
+    renderCompareModalUI() {
+        if (!this.dom.compareSlotsContainer || !this.dom.compareTable) return;
+
+        const colors = ['#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f43f5e'];
+
+        // Render Slots / Chips Bar
+        let slotsHtml = '';
+        for (let i = 0; i < 5; i++) {
+            const cov = this.comparedStations[i];
+            if (cov) {
+                const color = colors[i % colors.length];
+                slotsHtml += `
+                    <div class="compare-slot active-slot" style="border-left: 4px solid ${color};">
+                        <div class="slot-info">
+                            <strong style="color: ${color};">${cov.station.callsign}</strong>
+                            <span>${cov.station.frequency} ${cov.station.band} &bull; ${cov.station.city}</span>
+                        </div>
+                        <button class="btn-slot-remove" data-call="${cov.station.callsign}" title="Remove station">&times;</button>
+                    </div>
+                `;
+            } else {
+                slotsHtml += `
+                    <div class="compare-slot empty-slot">
+                        <span>Slot ${i + 1} Empty</span>
+                    </div>
+                `;
+            }
+        }
+        this.dom.compareSlotsContainer.innerHTML = slotsHtml;
+
+        // Slot Remove Listeners
+        this.dom.compareSlotsContainer.querySelectorAll('.btn-slot-remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const call = e.target.getAttribute('data-call');
+                this.removeStationFromCompare(call);
+            });
+        });
+
+        // Render Technical Parameter Comparison Matrix Table
+        if (this.comparedStations.length === 0) {
+            this.dom.compareTable.innerHTML = `
+                <tr>
+                    <td class="compare-empty-msg" colspan="6">
+                        No stations selected. Type a callsign above or click "+ Compare" on any station card to compare up to 5 stations side-by-side.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const metrics = [
+            { label: 'Callsign', key: (s) => `<strong>${s.callsign}</strong>` },
+            { label: 'Station Name', key: (s) => s.name || '-' },
+            { label: 'Band & Frequency', key: (s) => `${s.frequency} ${s.band === 'FM' ? 'MHz' : 'kHz'}` },
+            { label: 'ERP Power', key: (s) => `${s.erp_kw} kW` },
+            { label: 'Antenna HAAT', key: (s) => `${s.haat_m} m (${Math.round(s.haat_m * 3.28084)} ft)` },
+            { label: 'Station Class', key: (s) => s.station_class || '-' },
+            { label: 'City of License', key: (s) => `${s.city}, ${s.state} (${s.country})` },
+            { label: 'Licensee / Operator', key: (s) => s.licensee || '-' },
+            { 
+                label: '60 dBu Service Radius', 
+                key: (s, cov) => {
+                    const c60 = cov.contours.find(c => c.level_dbu === 60.0) || cov.contours[0];
+                    return c60 ? `${c60.avg_radius_km} km (${Math.round(c60.avg_radius_km * 0.621371)} mi)` : '-';
+                }
+            },
+            { 
+                label: '60 dBu Service Area', 
+                key: (s, cov) => {
+                    const c60 = cov.contours.find(c => c.level_dbu === 60.0) || cov.contours[0];
+                    return c60 ? `${c60.area_sqkm.toLocaleString()} km²` : '-';
+                }
+            }
+        ];
+
+        let tableHtml = '<thead><tr><th>Parameter</th>';
+        this.comparedStations.forEach((cov, idx) => {
+            const color = colors[idx % colors.length];
+            tableHtml += `<th style="color:${color};">${cov.station.callsign}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        metrics.forEach((m) => {
+            tableHtml += `<tr><td class="param-label">${m.label}</td>`;
+            this.comparedStations.forEach((cov) => {
+                tableHtml += `<td>${m.key(cov.station, cov)}</td>`;
+            });
+            tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody>';
+
+        this.dom.compareTable.innerHTML = tableHtml;
+    }
+
+    async exportMapScreenshot() {
+        const mapEl = document.getElementById('map-container');
+        if (!mapEl) return;
+
+        const btn = document.getElementById('export-png-btn');
+        const originalContent = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = `<div class="opt-icon">⏳</div><div class="opt-text"><h4>Rendering Screenshot...</h4><p>Capturing map layers and contours...</p></div>`;
+        }
+
+        try {
+            const canvas = await html2canvas(mapEl, {
+                useCORS: true,
+                allowTaint: true,
+                scale: 2,
+                ignoreElements: (element) => element.classList.contains('leaflet-control-zoom')
+            });
+
+            const imageUri = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            const call = this.currentCoverage ? this.currentCoverage.station.callsign : 'RadioScope';
+            a.href = imageUri;
+            a.download = `${call}_coverage_map_screenshot.png`;
+            a.click();
+        } catch (err) {
+            console.error('Screenshot generation error:', err);
+            alert('Could not render map screenshot. Please try again.');
+        } finally {
+            if (btn) btn.innerHTML = originalContent;
+            if (this.dom.exportModal) this.dom.exportModal.classList.add('hidden');
+        }
+    }
 }
 
 // Initialize Application when DOM is ready

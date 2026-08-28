@@ -15,19 +15,14 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <!-- App CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
 <body class="amber-crt-theme">
     <div id="app-container">
         <!-- Top Navigation Header -->
         <header id="main-header">
             <div class="brand-area">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-                    </svg>
-                </div>
+                <img src="/static/images/logo.png?v=1" alt="RadioScope Logo" class="brand-logo-img">
                 <div class="brand-text">
                     <span class="brand-title">RadioScope</span>
                     <span class="brand-subtitle">US &amp; Canada Broadcast Coverage</span>
@@ -60,6 +55,11 @@
 
             <!-- Quick Action Toolbar -->
             <div class="header-actions">
+                <button id="btn-compare-menu" class="btn btn-secondary" title="Compare Station Coverages">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    <span>Compare</span>
+                    <span id="compare-badge" class="badge-count hidden">0</span>
+                </button>
                 <button id="btn-custom-sim" class="btn btn-secondary" title="Simulate Custom Transmitter">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     <span>Custom Simulation</span>
@@ -104,6 +104,10 @@
                                     <h2 id="st-callsign">WNYC-FM</h2>
                                     <span id="st-country-badge" class="badge badge-country">🇺🇸 USA</span>
                                     <span id="st-band-badge" class="badge badge-band">FM</span>
+                                    <button id="btn-add-compare" class="btn btn-sm btn-secondary" title="Add to Compare List">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <span>+ Compare</span>
+                                    </button>
                                 </div>
                                 <div id="st-name" class="station-name">WNYC 93.9 FM - New York Public Radio</div>
                             </div>
@@ -222,6 +226,11 @@
                             </div>
                         </div>
                     </section>
+
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <span>Made in Canada by <strong>VA1RF</strong> 🇨🇦</span>
+                    </div>
                 </div>
             </aside>
 
@@ -257,6 +266,11 @@
                     <div class="legend-item"><span class="legend-color-dot" style="background:#3b82f6;"></span> Service (60 dBu)</div>
                     <div class="legend-item"><span class="legend-color-dot" style="background:#f59e0b;"></span> Secondary (54 dBu)</div>
                     <div class="legend-item"><span class="legend-color-dot" style="background:#8b5cf6;"></span> Fringe (48 dBu)</div>
+                </div>
+
+                <!-- Map Floating Attribution -->
+                <div class="map-floating-attribution">
+                    Made in Canada by <strong>VA1RF</strong> 🇨🇦
                 </div>
             </div>
         </main>
@@ -346,6 +360,13 @@
                     </button>
                 </div>
                 <div class="export-options-list">
+                    <button id="export-png-btn" class="export-option-card">
+                        <div class="opt-icon">📸</div>
+                        <div class="opt-text">
+                            <h4>Download Map PNG Screenshot</h4>
+                            <p>High-resolution PNG map image with station contours, markers &amp; terrain legend.</p>
+                        </div>
+                    </button>
                     <button id="export-geojson-btn" class="export-option-card">
                         <div class="opt-icon">🌍</div>
                         <div class="opt-text">
@@ -370,11 +391,49 @@
                 </div>
             </div>
         </div>
+
+        <!-- Station Comparison Modal -->
+        <div id="compare-modal" class="modal-overlay hidden">
+            <div class="modal-card modal-large">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <h3>Station Coverage Comparison Matrix</h3>
+                        <span class="header-note">Select up to 5 US &amp; Canadian radio stations</span>
+                    </div>
+                    <button id="compare-close-btn" class="btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+
+                <div class="compare-body">
+                    <div class="compare-search-box">
+                        <input type="text" id="compare-search-input" placeholder="Enter station callsign to compare (e.g. WNYC-FM, CBLA-FM, CHOM-FM, CFOX-FM, VOCM)..." autocomplete="off" spellcheck="false">
+                        <button id="compare-add-btn" class="btn btn-primary">+ Add Station</button>
+                    </div>
+
+                    <div id="compare-slots-container" class="compare-slots-bar">
+                        <!-- Up to 5 selected station slots dynamically rendered -->
+                    </div>
+
+                    <div class="compare-table-container">
+                        <table id="compare-table" class="compare-matrix-table">
+                            <!-- Matrix comparison rows rendered dynamically -->
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="compare-clear-btn" class="btn btn-secondary">Clear List</button>
+                    <button id="compare-overlay-map-btn" class="btn btn-primary">Overlay Contours on Map</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="/static/js/map.js?v=5"></script>
-    <script src="/static/js/app.js?v=5"></script>
+    <script src="/static/js/map.js?v=7"></script>
+    <script src="/static/js/app.js?v=7"></script>
 </body>
 </html>

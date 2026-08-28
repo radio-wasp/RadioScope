@@ -153,6 +153,79 @@ class CoverageMapManager {
         }
     }
 
+    renderMultiCoverage(coverageList) {
+        this.clearContours();
+        if (!coverageList || coverageList.length === 0) return;
+
+        const palette = [
+            { stroke: '#10b981', fill: '#10b981', name: 'Emerald' },
+            { stroke: '#f59e0b', fill: '#f59e0b', name: 'Amber' },
+            { stroke: '#8b5cf6', fill: '#8b5cf6', name: 'Purple' },
+            { stroke: '#06b6d4', fill: '#06b6d4', name: 'Cyan' },
+            { stroke: '#f43f5e', fill: '#f43f5e', name: 'Rose' }
+        ];
+
+        const bounds = L.latLngBounds();
+
+        coverageList.forEach((cov, idx) => {
+            const st = cov.station;
+            const color = palette[idx % palette.length];
+
+            // Render Service/Primary (60 dBu) contour polygon for comparison
+            const primaryContour = cov.contours.find(c => c.level_dbu === 60.0) || cov.contours[0];
+            if (primaryContour) {
+                const geojsonLayer = L.geoJSON(primaryContour.geometry, {
+                    style: {
+                        color: color.stroke,
+                        weight: 3,
+                        opacity: 0.9,
+                        fillColor: color.fill,
+                        fillOpacity: 0.2
+                    }
+                });
+
+                geojsonLayer.bindTooltip(`
+                    <strong>${st.callsign} (${st.frequency} ${st.band})</strong><br>
+                    <span>${st.city}, ${st.state}</span><br>
+                    <span>60 dBu Radius: ${primaryContour.avg_radius_km} km</span>
+                `, { sticky: true, className: 'contour-tooltip' });
+
+                geojsonLayer.addTo(this.map);
+                this.contourLayers.push(geojsonLayer);
+                bounds.extend(geojsonLayer.getBounds());
+            }
+
+            // Custom Pin Marker with Callsign Badge
+            const pinIcon = L.divIcon({
+                className: 'custom-compare-marker',
+                html: `
+                    <div style="background:${color.stroke}; color:#ffffff; font-weight:800; font-size:11px; padding:3px 7px; border-radius:12px; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.4); text-align:center; white-space:nowrap;">
+                        ${st.callsign}
+                    </div>
+                `,
+                iconSize: [64, 24],
+                iconAnchor: [32, 12]
+            });
+
+            const marker = L.marker([st.latitude, st.longitude], { icon: pinIcon })
+                .bindPopup(`
+                    <div style="font-family: var(--font-sans); min-width: 170px;">
+                        <strong style="font-size: 1rem; color: ${color.stroke};">${st.callsign}</strong><br>
+                        <span>${st.name || ''}</span><br>
+                        <small><b>Power:</b> ${st.erp_kw} kW | <b>HAAT:</b> ${st.haat_m} m</small>
+                    </div>
+                `)
+                .addTo(this.map);
+
+            this.contourLayers.push(marker);
+            bounds.extend([st.latitude, st.longitude]);
+        });
+
+        if (bounds.isValid()) {
+            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 11, animate: true });
+        }
+    }
+
     setProbeLocation(probeData, lat, lon) {
         if (this.probeMarker) {
             this.map.removeLayer(this.probeMarker);
