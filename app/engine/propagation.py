@@ -18,6 +18,14 @@ FM_CONTOURS = [
         "fill_opacity": 0.35,
     },
     {
+        "level_dbu": 65.0,
+        "name": "HD Radio Digital Lock (65 dBu / 1.78 mV/m)",
+        "description": "HD1/HD2/HD3 IBOC Digital Lock Zone (Crystal-Clear Hybrid Digital Audio).",
+        "color": "#06b6d4",
+        "stroke_color": "#0891b2",
+        "fill_opacity": 0.28,
+    },
+    {
         "level_dbu": 60.0,
         "name": "Protected Service (60 dBu / 1.00 mV/m)",
         "description": "Standard licensed coverage area. Clear car stereo and home antenna reception.",

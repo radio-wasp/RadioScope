@@ -275,15 +275,25 @@ body {
 .brand-area {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-width: 220px;
+    min-width: 250px;
+    height: 100%;
+    padding: 4px 0;
 }
 
-.brand-logo-img {
-    height: 44px;
+.brand-full-logo {
+    height: 48px;
+    max-height: 52px;
     width: auto;
+    max-width: 300px;
     object-fit: contain;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+    mix-blend-mode: multiply;
+    background-color: transparent;
+    filter: contrast(1.08) brightness(1.05);
+}
+
+body.amber-crt-theme .brand-full-logo {
+    mix-blend-mode: screen;
+    filter: brightness(1.2) contrast(1.1) drop-shadow(0 0 6px rgba(255, 170, 0, 0.4));
 }
 
 .brand-title {
@@ -1337,6 +1347,21 @@ body:not(.dark-theme):not(.light-theme) .map-floating-attribution strong {
     padding: 2px 7px;
     border-radius: 12px;
     margin-left: 4px;
+}
+
+.badge-hd {
+    background-color: #06b6d4;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+body.amber-crt-theme .badge-hd {
+    background-color: #0891b2 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 6px rgba(6, 182, 212, 0.6);
 }
 
 body.amber-crt-theme .badge-count {

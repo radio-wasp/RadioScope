@@ -92,14 +92,15 @@ class CoverageMapManager {
         const reversedContours = [...coverageData.contours].reverse();
 
         reversedContours.forEach((tier) => {
+            const isHdTier = tier.level_dbu === 65.0;
             const geojsonLayer = L.geoJSON(tier.geometry, {
                 style: {
-                    color: tier.stroke_color,
-                    weight: 2,
-                    opacity: 0.85,
-                    fillColor: tier.color,
-                    fillOpacity: tier.fill_opacity,
-                    dashArray: tier.level_dbu === 48.0 ? '4, 4' : null
+                    color: isHdTier ? '#06b6d4' : tier.stroke_color,
+                    weight: isHdTier ? 2.5 : 2,
+                    opacity: 0.9,
+                    fillColor: isHdTier ? '#06b6d4' : tier.color,
+                    fillOpacity: isHdTier ? 0.22 : tier.fill_opacity,
+                    dashArray: isHdTier ? '6, 6' : (tier.level_dbu === 48.0 ? '4, 4' : null)
                 }
             });
 
@@ -112,12 +113,42 @@ class CoverageMapManager {
             geojsonLayer.addTo(this.map);
             this.contourLayers.push(geojsonLayer);
 
-            // Extend bounds
             bounds.extend(geojsonLayer.getBounds());
         });
 
-        // Add Animated Transmitter Marker
+        // Add Concentric Distance Range Rings (25 km, 50 km, 100 km, 150 km, 200 km)
         const st = coverageData.station;
+        const maxCoverageRadius = Math.max(...coverageData.contours.map(c => c.max_radius_km));
+        const rangeRings = [25, 50, 100, 150, 200];
+
+        rangeRings.forEach((distKm) => {
+            if (distKm <= maxCoverageRadius * 1.25) {
+                const ringCircle = L.circle([st.latitude, st.longitude], {
+                    radius: distKm * 1000,
+                    color: 'rgba(255, 170, 0, 0.45)',
+                    weight: 1,
+                    dashArray: '3, 6',
+                    fill: false,
+                    interactive: false
+                });
+                ringCircle.addTo(this.map);
+                this.contourLayers.push(ringCircle);
+
+                // Radial distance badge
+                const badgeLng = st.longitude + (distKm / (111.32 * Math.cos(st.latitude * Math.PI / 180)));
+                const labelIcon = L.divIcon({
+                    className: 'range-ring-label-marker',
+                    html: `<div style="background:rgba(10,5,0,0.85); color:#ffaa00; border:1px solid #7a3d00; font-size:10px; font-weight:800; font-family:monospace; padding:1px 5px; border-radius:3px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,0.6);">${distKm} km</div>`,
+                    iconSize: [42, 16],
+                    iconAnchor: [21, 8]
+                });
+                const labelMarker = L.marker([st.latitude, badgeLng], { icon: labelIcon, interactive: false });
+                labelMarker.addTo(this.map);
+                this.contourLayers.push(labelMarker);
+            }
+        });
+
+        // Add Animated Transmitter Marker
         const towerIcon = L.divIcon({
             className: 'custom-tower-marker',
             html: `

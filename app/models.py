@@ -42,6 +42,8 @@ class Station(BaseModel):
     night_beam_deg: Optional[float] = 0.0
     daytimer_only: Optional[bool] = False
 
+    is_hd: bool = True
+    hd_channels: Optional[List[str]] = None
     stream_url: Optional[str] = None
     web_url: Optional[str] = None
 

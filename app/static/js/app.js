@@ -380,6 +380,17 @@ class RadioScopeApp {
             this.dom.amModeContainer.classList.add('hidden');
         }
         
+        // Update HD Radio Badge
+        const stHdBadge = document.getElementById('st-hd-badge');
+        if (stHdBadge) {
+            if (!isAm) {
+                stHdBadge.classList.remove('hidden');
+                stHdBadge.textContent = st.hd_channels ? `📻 HD Radio (${st.hd_channels.join(', ')})` : '📻 HD Radio';
+            } else {
+                stHdBadge.classList.add('hidden');
+            }
+        }
+
         // Populate Engineering Specs
         this.dom.stFrequency.textContent = `${st.frequency} ${isAm ? 'kHz' : 'MHz'}`;
         this.dom.stErp.textContent = `${coverageData.operating_power_kw || st.erp_kw} kW`;
@@ -464,9 +475,10 @@ class RadioScopeApp {
         // Determine if Amber CRT theme is active
         const isAmber = document.body.classList.contains('amber-crt-theme') || (!document.body.classList.contains('dark-theme') && !document.body.classList.contains('light-theme'));
 
-        // Draw Reference Contour Lines (70, 60, 54, 48 dBu)
+        // Draw Reference Contour Lines (70, 65 HD, 60, 54, 48 dBu)
         const refLines = [
             { dbu: 70, color: isAmber ? 'rgba(255, 170, 0, 0.45)' : 'rgba(16, 185, 129, 0.4)', label: '70' },
+            { dbu: 65, color: isAmber ? 'rgba(6, 182, 212, 0.6)' : 'rgba(6, 182, 212, 0.65)', label: '65 HD' },
             { dbu: 60, color: isAmber ? 'rgba(255, 150, 0, 0.35)' : 'rgba(59, 130, 246, 0.4)', label: '60' },
             { dbu: 54, color: isAmber ? 'rgba(255, 120, 0, 0.25)' : 'rgba(245, 158, 11, 0.4)', label: '54' },
             { dbu: 48, color: isAmber ? 'rgba(255, 90, 0, 0.20)' : 'rgba(139, 92, 246, 0.4)', label: '48' }
