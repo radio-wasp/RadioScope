@@ -201,28 +201,57 @@ class CoverageMapManager {
             const st = cov.station;
             const color = palette[idx % palette.length];
 
-            // Render Service/Primary (60 dBu) contour polygon for comparison
-            const primaryContour = cov.contours.find(c => c.level_dbu === 60.0) || cov.contours[0];
-            if (primaryContour) {
-                const geojsonLayer = L.geoJSON(primaryContour.geometry, {
+            // Identify City Grade Contour (70 dBu / 88 dBu / 80 dBu / highest) and Protected Service Contour (60 dBu / 66 dBu)
+            const cityContour = cov.contours.find(c => c.level_dbu >= 70.0) || cov.contours[0];
+            const serviceContour = cov.contours.find(c => c.level_dbu === 60.0 || c.level_dbu === 66.0) || cov.contours[1] || cov.contours[0];
+
+            // 1. Render Protected Service Contour (Outer Contour - dashed line, translucent fill)
+            if (serviceContour) {
+                const serviceLayer = L.geoJSON(serviceContour.geometry, {
                     style: {
                         color: color.stroke,
-                        weight: 3,
-                        opacity: 0.9,
+                        weight: 2.5,
+                        opacity: 0.85,
                         fillColor: color.fill,
-                        fillOpacity: 0.2
+                        fillOpacity: 0.15,
+                        dashArray: '6, 6'
                     }
                 });
 
-                geojsonLayer.bindTooltip(`
-                    <strong>${st.callsign} (${st.frequency} ${st.band})</strong><br>
-                    <span>${st.city}, ${st.state}</span><br>
-                    <span>60 dBu Radius: ${primaryContour.avg_radius_km} km</span>
+                serviceLayer.bindTooltip(`
+                    <strong>${st.callsign} Service Contour (${serviceContour.level_dbu} dBu)</strong><br>
+                    <span>${st.frequency} ${st.band === 'FM' ? 'MHz' : 'kHz'} &bull; ${st.city}, ${st.state}</span><br>
+                    <span>Avg Radius: ${serviceContour.avg_radius_km} km (${Math.round(serviceContour.avg_radius_km * 0.621371)} mi)</span><br>
+                    <span>Service Area: ${serviceContour.area_sqkm.toLocaleString()} km²</span>
                 `, { sticky: true, className: 'contour-tooltip' });
 
-                geojsonLayer.addTo(this.map);
-                this.contourLayers.push(geojsonLayer);
-                bounds.extend(geojsonLayer.getBounds());
+                serviceLayer.addTo(this.map);
+                this.contourLayers.push(serviceLayer);
+                bounds.extend(serviceLayer.getBounds());
+            }
+
+            // 2. Render City Grade Contour (Inner Contour - solid line, stronger fill)
+            if (cityContour && cityContour !== serviceContour) {
+                const cityLayer = L.geoJSON(cityContour.geometry, {
+                    style: {
+                        color: color.stroke,
+                        weight: 3,
+                        opacity: 0.95,
+                        fillColor: color.fill,
+                        fillOpacity: 0.32
+                    }
+                });
+
+                cityLayer.bindTooltip(`
+                    <strong>${st.callsign} City Grade Contour (${cityContour.level_dbu} dBu)</strong><br>
+                    <span>${st.frequency} ${st.band === 'FM' ? 'MHz' : 'kHz'} &bull; ${st.city}, ${st.state}</span><br>
+                    <span>Avg Radius: ${cityContour.avg_radius_km} km (${Math.round(cityContour.avg_radius_km * 0.621371)} mi)</span><br>
+                    <span>City Area: ${cityContour.area_sqkm.toLocaleString()} km²</span>
+                `, { sticky: true, className: 'contour-tooltip' });
+
+                cityLayer.addTo(this.map);
+                this.contourLayers.push(cityLayer);
+                bounds.extend(cityLayer.getBounds());
             }
 
             // Custom Pin Marker with Callsign Badge
