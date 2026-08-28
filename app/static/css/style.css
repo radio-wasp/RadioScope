@@ -35,7 +35,7 @@
     --shadow-md: 0 0 14px rgba(255, 150, 0, 0.35), inset 0 0 10px rgba(255, 100, 0, 0.1);
     --shadow-lg: 0 0 25px rgba(255, 140, 0, 0.45), inset 0 0 30px rgba(0, 0, 0, 0.9);
 
-    --header-height: 68px;
+    --header-height: 72px;
     --sidebar-width: 440px;
 }
 
@@ -275,16 +275,16 @@ body {
 .brand-area {
     display: flex;
     align-items: center;
-    min-width: 250px;
+    min-width: 280px;
     height: 100%;
-    padding: 4px 0;
+    padding: 2px 0;
 }
 
 .brand-full-logo {
-    height: 48px;
-    max-height: 52px;
+    height: 60px;
+    max-height: 64px;
     width: auto;
-    max-width: 300px;
+    max-width: 380px;
     object-fit: contain;
     mix-blend-mode: multiply;
     background-color: transparent;
@@ -293,7 +293,7 @@ body {
 
 body.amber-crt-theme .brand-full-logo {
     mix-blend-mode: screen;
-    filter: brightness(1.2) contrast(1.1) drop-shadow(0 0 6px rgba(255, 170, 0, 0.4));
+    filter: brightness(1.2) contrast(1.1) drop-shadow(0 0 8px rgba(255, 170, 0, 0.45));
 }
 
 .brand-title {

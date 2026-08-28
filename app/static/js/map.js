@@ -92,15 +92,14 @@ class CoverageMapManager {
         const reversedContours = [...coverageData.contours].reverse();
 
         reversedContours.forEach((tier) => {
-            const isHdTier = tier.level_dbu === 65.0;
             const geojsonLayer = L.geoJSON(tier.geometry, {
                 style: {
-                    color: isHdTier ? '#06b6d4' : tier.stroke_color,
-                    weight: isHdTier ? 2.5 : 2,
-                    opacity: 0.9,
-                    fillColor: isHdTier ? '#06b6d4' : tier.color,
-                    fillOpacity: isHdTier ? 0.22 : tier.fill_opacity,
-                    dashArray: isHdTier ? '6, 6' : (tier.level_dbu === 48.0 ? '4, 4' : null)
+                    color: tier.stroke_color,
+                    weight: 2,
+                    opacity: 0.85,
+                    fillColor: tier.color,
+                    fillOpacity: tier.fill_opacity,
+                    dashArray: tier.level_dbu === 48.0 ? '4, 4' : null
                 }
             });
 

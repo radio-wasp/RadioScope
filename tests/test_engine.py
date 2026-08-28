@@ -106,9 +106,9 @@ def test_station_contour_pipeline():
     wnyc = station_db.get_by_callsign("WNYC-FM")
     tiers, geojson, profile, power, pattern = generate_station_contours(wnyc)
 
-    assert len(tiers) == 5  # 70 dBu City, 65 dBu HD Digital, 60 dBu Primary, 54 dBu Secondary, 48 dBu Fringe
+    assert len(tiers) == 4
     assert geojson["type"] == "FeatureCollection"
-    assert len(geojson["features"]) == 6  # 5 contours + 1 transmitter point
+    assert len(geojson["features"]) == 5  # 4 contours + 1 transmitter point
     assert len(profile) > 10
 
     # Test Probe
